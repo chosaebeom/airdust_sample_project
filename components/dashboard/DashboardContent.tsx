@@ -5,10 +5,11 @@ import { useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
-  Construction,
   WifiOff,
 } from "lucide-react";
 import DeviceDetailPopup from "@/components/dashboard/DeviceDetailPopup";
+import StatsContent from "@/components/stats/StatsContent";
+import UsersContent from "@/components/users/UsersContent";
 import { SAMPLE_DEVICES, STATUS_COLOR } from "@/lib/sensing-data";
 import type { MenuKey, SensingDevice } from "@/types/sensing";
 
@@ -33,18 +34,12 @@ export default function DashboardContent({
     null,
   );
 
-  if (activeMenu !== "dashboard") {
-    const title = activeMenu === "stats" ? "통계페이지" : "사용자페이지";
+  if (activeMenu === "stats") {
+    return <StatsContent />;
+  }
 
-    return (
-      <section className="flex flex-1 items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-3 text-slate-500">
-          <Construction className="h-10 w-10" aria-hidden />
-          <p className="text-lg font-semibold text-slate-700">{title}</p>
-          <p className="text-sm">이 화면은 이후 단계에서 구성합니다.</p>
-        </div>
-      </section>
-    );
+  if (activeMenu === "users") {
+    return <UsersContent />;
   }
 
   return (
