@@ -42,7 +42,7 @@
 
 ## 🏛 아키텍처 및 렌더링 설계 (Architecture)
 
-airdust_sample_project/
+```airdust_sample_project/
 ├── src/
 │   ├── app/
 │   │   ├── layout.tsx         # 전역 HTML/폰트/메타데이터 관리 및 공통 프레임 제공
@@ -64,6 +64,7 @@ airdust_sample_project/
         ├── stats-data.ts     # 목업 통계데이터
         ├── store.ts          # zustand 상태관리
         └── users-data.ts     # 목업 유저 데이터
+```
 
 - **렌더링 최적화:**  
   정적인 레이아웃 및 초기 HTML은 Next.js App Router의 Server Component로 빠르게 사전 렌더링(SSR)하고, 차트 렌더링 및 실시간 타이머 갱신이 필요한 영역만 `"use client"` Boundary로 격리하여 불필요한 번들 크기 증가를 방지했습니다.
