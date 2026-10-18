@@ -3,6 +3,7 @@
 import { MapPin, Radio, Wind, X } from "lucide-react";
 import { STATUS_COLOR, STATUS_LABEL } from "@/lib/sensing-data";
 import type { SensingDevice } from "@/types/sensing";
+import { useStatsStore } from "@/lib/stats-store";
 
 type DeviceDetailPopupProps = {
   device: SensingDevice;
@@ -16,6 +17,7 @@ export default function DeviceDetailPopup({
 }: DeviceDetailPopupProps) {
   const statusLabel = STATUS_LABEL[device.status];
   const statusColor = STATUS_COLOR[device.status];
+  const focusDeviceStats = useStatsStore((state) => state.focusDeviceStats);
   const pmText =
     device.pm25 === null ? "수신 불가" : `${device.pm25} ㎍/m³`;
 
@@ -37,6 +39,10 @@ export default function DeviceDetailPopup({
             <h2
               id="device-popup-title"
               className="mt-1 text-lg font-semibold text-slate-900"
+              onClick={(e) => {
+                e.stopPropagation(); // 지도나 상위 카드 클릭 이벤트와 겹치는 현상 방지
+                focusDeviceStats(device.id);
+              }}
             >
               {device.name}
             </h2>

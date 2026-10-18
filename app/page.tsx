@@ -7,11 +7,14 @@ import HeaderBar from "@/components/layout/HeaderBar";
 import LeftMenu from "@/components/layout/LeftMenu";
 import type { MenuKey } from "@/types/sensing";
 import { useAuthStore } from "@/lib/store";
+import { useStatsStore } from "@/lib/stats-store";
 
 /** 관제 시스템 첫 화면: header / left / content 세 영역으로 구성 */
 export default function Home() {
   const router = useRouter();
-  const [activeMenu, setActiveMenu] = useState<MenuKey>("dashboard");
+  //const [activeMenu, setActiveMenu] = useState<MenuKey>("dashboard");
+  const activeMenu = useStatsStore((state) => state.activeMenu);
+  const setActiveMenu = useStatsStore((state) => state.setActiveMenu);
   const [ready, setReady] = useState(false);
 
   const user = useAuthStore((s) => s.user);

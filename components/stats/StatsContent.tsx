@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -12,8 +12,10 @@ import {
   Legend,
 } from "recharts";
 import { Search } from "lucide-react";
-import { STATS_DATA, getAvailableDates } from "@/lib/stats-data";
-import { SAMPLE_DEVICES } from "@/lib/sensing-data";
+import { STATS_DATA } from "@/lib/stats-data";
+import { useStatsStore } from "@/lib/stats-store";
+import dynamic from "next/dynamic";
+import type { ChartRow } from "@/components/common/LineChart";
 
 /** 디바이스별 차트 색상 */
 const DEVICE_COLORS: Record<string, string> = {
@@ -21,15 +23,35 @@ const DEVICE_COLORS: Record<string, string> = {
   "PM-YI-002": "#d97706",
   "PM-YI-003": "#3b82f6",
 };
-
+// 서버 사이드 렌더링(SSR)을 끄고 브라우저에서만 차트 모듈을 로드
+const StatsLineChart = dynamic(() => import("@/components/common/LineChart"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center text-sm text-slate-400">
+      차트를 불러오는 중...
+    </div>
+  ),
+});
 export default function StatsContent() {
-  const allDates = useMemo(() => getAvailableDates(), []);
-  const minDate = allDates[0] ?? "";
-  const maxDate = allDates[allDates.length - 1] ?? "";
+  // Zustand 스토어에서 날짜 및 단말 상태 가져오기
+  const {
+    minDate,
+    maxDate,
+    startDate,
+    endDate,
+    selectedDevice,
+    devices,
+    setStartDate,
+    setEndDate,
+    setSelectedDevice,
+    resetFilters,
+  } = useStatsStore();
 
-  const [startDate, setStartDate] = useState(minDate);
-  const [endDate, setEndDate] = useState(maxDate);
-  const [selectedDevice, setSelectedDevice] = useState("all");
+  // 단말 ID로 단말명을 빠르게 찾기 위한 맵
+  const deviceNameMap = useMemo(
+    () => new Map(devices.map((d) => [d.id, d.name])),
+    [devices]
+  );
 
   const filteredData = useMemo(
     () =>
@@ -43,12 +65,18 @@ export default function StatsContent() {
     [startDate, endDate, selectedDevice]
   );
 
-  const chartData = useMemo(() => {
-    const deviceIds =
+  const visibleDevices = useMemo(
+    () =>
       selectedDevice === "all"
-        ? SAMPLE_DEVICES.map((d) => d.id)
-        : [selectedDevice];
+        ? devices
+        : devices.filter((d) => d.id === selectedDevice),
+    [devices, selectedDevice]
+  );
+
+  const chartData = useMemo(() => {
+    const deviceIds = visibleDevices.map((d) => d.id);
     const dates = [...new Set(filteredData.map((r) => r.date))].sort();
+
     return dates.map((date) => {
       const row: Record<string, string | number | null> = { date };
       for (const id of deviceIds) {
@@ -59,15 +87,7 @@ export default function StatsContent() {
       }
       return row;
     });
-  }, [filteredData, selectedDevice]);
-
-  const visibleDevices = useMemo(
-    () =>
-      selectedDevice === "all"
-        ? SAMPLE_DEVICES
-        : SAMPLE_DEVICES.filter((d) => d.id === selectedDevice),
-    [selectedDevice]
-  );
+  }, [filteredData, visibleDevices]);
 
   const tableData = useMemo(
     () => [...filteredData].sort((a, b) => a.date.localeCompare(b.date)),
@@ -80,7 +100,10 @@ export default function StatsContent() {
       <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4">
         <div className="flex flex-wrap items-end gap-4">
           <div>
-            <label htmlFor="stats-start" className="mb-1 block text-xs font-medium text-slate-500">
+            <label
+              htmlFor="stats-start"
+              className="mb-1 block text-xs font-medium text-slate-500"
+            >
               시작일
             </label>
             <input
@@ -88,27 +111,33 @@ export default function StatsContent() {
               type="date"
               value={startDate}
               min={minDate}
-              max={maxDate}
+              max={endDate || maxDate}
               onChange={(e) => setStartDate(e.target.value)}
               className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
           </div>
           <div>
-            <label htmlFor="stats-end" className="mb-1 block text-xs font-medium text-slate-500">
+            <label
+              htmlFor="stats-end"
+              className="mb-1 block text-xs font-medium text-slate-500"
+            >
               종료일
             </label>
             <input
               id="stats-end"
               type="date"
               value={endDate}
-              min={minDate}
+              min={startDate || minDate}
               max={maxDate}
               onChange={(e) => setEndDate(e.target.value)}
               className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
           </div>
           <div>
-            <label htmlFor="stats-device" className="mb-1 block text-xs font-medium text-slate-500">
+            <label
+              htmlFor="stats-device"
+              className="mb-1 block text-xs font-medium text-slate-500"
+            >
               디바이스
             </label>
             <select
@@ -118,7 +147,7 @@ export default function StatsContent() {
               className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             >
               <option value="all">전체 디바이스</option>
-              {SAMPLE_DEVICES.map((d) => (
+              {devices.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
                 </option>
@@ -127,11 +156,7 @@ export default function StatsContent() {
           </div>
           <button
             type="button"
-            onClick={() => {
-              setStartDate(minDate);
-              setEndDate(maxDate);
-              setSelectedDevice("all");
-            }}
+            onClick={resetFilters}
             className="inline-flex items-center gap-1.5 rounded-md bg-slate-800 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-slate-700"
           >
             <Search className="h-3.5 w-3.5" />
@@ -140,63 +165,17 @@ export default function StatsContent() {
         </div>
       </div>
 
-      {/* ===== 2. 라인 차트 ===== */}
+      {/* ===== 2. 라인 차트 (모듈화 완료) ===== */}
       <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4">
         <h3 className="mb-3 text-sm font-semibold text-slate-700">
           미세먼지(PM2.5) 추이
         </h3>
         <div className="h-72 w-full">
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={chartData}
-                margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 12, fill: "#64748b" }}
-                  tickFormatter={(v) => v.slice(5)}
-                />
-                <YAxis
-                  tick={{ fontSize: 12, fill: "#64748b" }}
-                  label={{
-                    value: "㎍/m³",
-                    angle: -90,
-                    position: "insideLeft",
-                    style: { fontSize: 12, fill: "#94a3b8" },
-                  }}
-                />
-                <Tooltip
-                  formatter={(value, name) => [
-                    value != null ? `${value} ㎍/m³` : "—",
-                    String(name),
-                  ]}
-                />
-                <Legend
-                  formatter={(value: string) => {
-                    const dev = visibleDevices.find((d) => d.id === value);
-                    return dev ? dev.name : value;
-                  }}
-                />
-                {visibleDevices.map((d) => (
-                  <Line
-                    key={d.id}
-                    type="monotone"
-                    dataKey={d.id}
-                    stroke={DEVICE_COLORS[d.id] ?? "#64748b"}
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    connectNulls
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">
-              검색 결과가 없습니다.
-            </div>
-          )}
+          <StatsLineChart
+            chartData={chartData}
+            visibleDevices={visibleDevices}
+            deviceNameMap={deviceNameMap}
+          />
         </div>
       </div>
 
@@ -208,9 +187,7 @@ export default function StatsContent() {
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 bg-slate-50">
             <tr className="border-b border-slate-200">
-              <th className="px-3 py-2.5 font-medium text-slate-600">
-                측정일
-              </th>
+              <th className="px-3 py-2.5 font-medium text-slate-600">측정일</th>
               <th className="px-3 py-2.5 font-medium text-slate-600">
                 디바이스명
               </th>
@@ -228,7 +205,7 @@ export default function StatsContent() {
                 >
                   <td className="px-3 py-2.5 text-slate-700">{row.date}</td>
                   <td className="px-3 py-2.5 text-slate-700">
-                    {row.deviceName}
+                    {deviceNameMap.get(row.deviceId) ?? row.deviceName}
                   </td>
                   <td className="px-3 py-2.5 font-medium text-slate-800">
                     {row.pm25} ㎍/m³
