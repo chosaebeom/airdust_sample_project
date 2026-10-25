@@ -5,6 +5,8 @@ export type StatsRecord = {
   deviceId: string;
   deviceName: string;
   pm25: number;
+  temperature: number;
+  humidity: number;
 };
 
 /** 날짜를 YYYY-MM-DD 포맷으로 변환 */
